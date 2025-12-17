@@ -1952,12 +1952,12 @@ async function handleSubscriptionRequest(request, user, url = null) {
     const selectedRegionsList = selectedProxyRegions ? selectedProxyRegions.split(',').map(r => r.trim()).filter(r => r) : [];
     
     if (currentWorkerRegion === 'CUSTOM') {
-        const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
-        await addNodesFromList(nativeList);
+        //const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
+        //await addNodesFromList(nativeList);
     } else {
         try {
-            const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
-            await addNodesFromList(nativeList);
+            //const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
+           //await addNodesFromList(nativeList);
         } catch (error) {
             logError(error, 'handleSubscriptionRequest.addNodesFromList', {
                 url: url.pathname,
@@ -1977,8 +1977,8 @@ async function handleSubscriptionRequest(request, user, url = null) {
                 const backupList = [{ ip: fallbackAddress, isp: 'ProxyIP-' + currentWorkerRegion }];
                 await addNodesFromList(backupList);
             } else {
-                const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
-                await addNodesFromList(nativeList);
+                //const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
+                //await addNodesFromList(nativeList);
             }
         }
     }
@@ -2219,7 +2219,7 @@ function generateLinksFromSource(list, user, workerDomain) {
         portsToGenerate.forEach(({ port, tls }) => {
             if (tls) {
 
-                const wsNodeName = `${nodeNameBase}-${port}-WS-TLS`;
+                const wsNodeName = `${nodeNameBase}`;
                 const wsParams = new URLSearchParams({
                     encryption: 'none',
                     security: 'tls',
@@ -2232,7 +2232,7 @@ function generateLinksFromSource(list, user, workerDomain) {
                 links.push(`${proto}://${vlessUUID}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
             } else {
 
-                const wsNodeName = `${nodeNameBase}-${port}-WS`;
+                const wsNodeName = `${nodeNameBase}`;
                 const wsParams = new URLSearchParams({
                     encryption: 'none',
                     security: 'none',
@@ -2292,7 +2292,7 @@ async function generateTrojanLinksFromSource(list, user, workerDomain) {
         portsToGenerate.forEach(({ port, tls }) => {
             if (tls) {
 
-                const wsNodeName = `${nodeNameBase}-${port}-${atob('VHJvamFu')}-WS-TLS`;
+                const wsNodeName = `${nodeNameBase}`;
                 const wsParams = new URLSearchParams({
                     security: 'tls',
                     sni: workerDomain,
@@ -2304,7 +2304,7 @@ async function generateTrojanLinksFromSource(list, user, workerDomain) {
                 links.push(`${atob('dHJvamFuOi8v')}${password}@${safeIP}:${port}?${wsParams.toString()}#${encodeURIComponent(wsNodeName)}`);
             } else {
 
-                const wsNodeName = `${nodeNameBase}-${port}-${atob('VHJvamFu')}-WS`;
+                const wsNodeName = `${nodeNameBase}`;
                 const wsParams = new URLSearchParams({
                     security: 'none',
                     type: 'ws',
@@ -6208,7 +6208,7 @@ function generateXhttpLinksFromSource(list, user, workerDomain) {
         const safeIP = item.ip.includes(':') ? `[${item.ip}]` : item.ip;
         const port = item.port || 443;
 
-        const wsNodeName = `${nodeNameBase}-${port}-xhttp`;
+        const wsNodeName = `${nodeNameBase}`;
         const params = new URLSearchParams({
             encryption: 'none',
             security: 'tls',
