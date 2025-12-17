@@ -4,9 +4,10 @@
 
 **多协议支持 · 图形化管理 · 自动优选**
 
-[![Telegram](https://img.shields.io/badge/Telegram-交流群-blue?logo=telegram)](https://t.me/+ft-zI76oovgwNmRh)
-[![Version](https://img.shields.io/badge/Version-2.7-green)]()
-[![License](https://img.shields.io/badge/License-MIT-orange)]()
+注释掉原生地址   //const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
+               //await addNodesFromList(nativeList);
+删除后缀 onst wsNodeName = `${nodeNameBase}-${port}-WS-TLS`;
+删除后缀 WS-TLS
 
 </div>
 
