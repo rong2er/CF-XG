@@ -1,0 +1,345 @@
+name: Generate and Obfuscate Worker Script
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '**'  # 仅匹配分支推送，排除标签推送
+    paths:
+      - '明文源吗'
+      - '.github/workflows/obfuscate.yml'
+
+jobs:
+  build-and-obfuscate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Obfuscator and dependencies
+        run: |
+          npm install javascript-obfuscator
+          npm install acorn
+
+      - name: Obfuscate from local source file
+        run: |
+          cat > obfuscate.js << 'EOF'
+          const JavaScriptObfuscator = require('javascript-obfuscator');
+          const fs = require('fs');
+          const path = require('path');
+          
+          const sourceFileName = '明文源吗';
+          const outputFileName = '少年你相信光吗';
+          const sourceFilePath = path.join(process.cwd(), sourceFileName);
+
+          if (!fs.existsSync(sourceFilePath)) {
+            console.error('错误：在路径 \'' + sourceFilePath + '\' 未找到源文件。请确保您的仓库根目录有名为 \'明文源吗\' 的文件。');
+            process.exit(1);
+          }
+
+          const originalCode = fs.readFileSync(sourceFilePath, 'utf8');
+
+          if (!originalCode || originalCode.trim().length === 0) {
+            console.error('错误：源文件 ' + sourceFileName + ' 为空。');
+            process.exit(1);
+          }
+
+          console.log('源文件大小: ' + originalCode.length + ' 字符');
+          console.log('开始解析代码...');
+
+          // 尝试使用简单的 AST 解析来检查语法
+          try {
+            const acorn = require('acorn');
+            acorn.parse(originalCode, { ecmaVersion: 2022, sourceType: 'module' });
+            console.log('代码语法检查通过');
+          } catch (parseError) {
+            console.error('代码语法错误:', parseError.message);
+            console.error('错误位置: 行 ' + parseError.loc?.line + ', 列 ' + parseError.loc?.column);
+            // 继续执行，让混淆器自己处理
+          }
+
+          // ============================================
+          // ⚠️ 混淆强度保护机制
+          // ⚠️ 重要：混淆强度不能降低，只能增加或保持不变
+          // ⚠️ 以下定义的是最小允许值，任何低于这些值的配置都会被拒绝
+          // ============================================
+          
+          // 定义混淆强度最小值（这些值不能降低）
+          const MIN_OBFUSCATION_VALUES = {
+              // 必须启用的选项（必须为true）
+              compact: true,
+              controlFlowFlattening: true,
+              deadCodeInjection: true,
+              stringArray: true,
+              stringArrayRotate: true,
+              stringArrayShuffle: true,
+              renameGlobals: true,
+              numbersToExpressions: true,
+              simplify: true,
+              splitStrings: true,
+              unicodeEscapeSequence: true,
+              disableConsoleOutput: true,
+              
+              // 阈值最小值（只能 >= 这些值）
+              controlFlowFlatteningThreshold: 1,        // 最小值：1（最大强度）
+              deadCodeInjectionThreshold: 1,            // 最小值：1（最大强度）
+              stringArrayThreshold: 1.0,                // 最小值：1.0（100%）
+              stringArrayWrappersCount: 2,              // 最小值：2
+              stringArrayWrappersParametersMaxCount: 3, // 最小值：3
+              splitStringsChunkLength: 1                // 最小值：1（最小块长度，强度最高）
+          };
+
+          // ============================================
+          // 当前混淆配置（可以增加但不能降低）
+          // 修改说明：
+          //   - 数值选项：只能增加，不能减少
+          //   - 布尔选项（MIN中为true的）：必须保持为true
+          //   - 如果要增强混淆，可以增加数值或启用更多选项
+          // ============================================
+          const obfuscationOptions = {
+              compact: true,
+              controlFlowFlattening: true,
+              controlFlowFlatteningThreshold: 1,      // ⚠️ 最小值：1，只能 >= 1
+              deadCodeInjection: true,
+              deadCodeInjectionThreshold: 1,          // ⚠️ 最小值：1，只能 >= 1
+              stringArray: true,
+              stringArrayEncoding: ['base64'],        // ⚠️ 可以添加更多编码，但必须包含base64
+              stringArrayThreshold: 1.0,              // ⚠️ 最小值：1.0，只能 >= 1.0
+              stringArrayRotate: true,
+              stringArrayShuffle: true,
+              stringArrayWrappersCount: 2,            // ⚠️ 最小值：2，只能 >= 2
+              stringArrayWrappersChainedCalls: false,
+              stringArrayWrappersParametersMaxCount: 3, // ⚠️ 最小值：3，只能 >= 3
+              renameGlobals: true,
+              identifierNamesGenerator: 'mangled-shuffled', // ⚠️ 可以增强但不能降级
+              identifierNamesCache: null,
+              identifiersPrefix: '',
+              renameProperties: false,
+              renamePropertiesMode: 'safe',
+              ignoreImports: false,
+              target: 'browser',
+              numbersToExpressions: true,
+              simplify: true,
+              splitStrings: true,
+              splitStringsChunkLength: 1,             // ⚠️ 最小值：1，只能 >= 1
+              transformObjectKeys: false,
+              unicodeEscapeSequence: true,
+              selfDefending: false,                   // 可以改为true增强，但不能从true改为false
+              debugProtection: false,                 // 可以改为true增强，但不能从true改为false
+              debugProtectionInterval: 0,
+              disableConsoleOutput: true,
+              domainLock: []
+          };
+
+          // ============================================
+          // 验证混淆强度（确保不低于最小值）
+          // ============================================
+          console.log('🔍 验证混淆强度配置...');
+          const validationErrors = [];
+          
+          // 验证阈值不能降低
+          if (obfuscationOptions.controlFlowFlatteningThreshold < MIN_OBFUSCATION_VALUES.controlFlowFlatteningThreshold) {
+              validationErrors.push('controlFlowFlatteningThreshold (' + obfuscationOptions.controlFlowFlatteningThreshold + 
+                                   ') 不能低于最小值 ' + MIN_OBFUSCATION_VALUES.controlFlowFlatteningThreshold);
+          }
+          if (obfuscationOptions.deadCodeInjectionThreshold < MIN_OBFUSCATION_VALUES.deadCodeInjectionThreshold) {
+              validationErrors.push('deadCodeInjectionThreshold (' + obfuscationOptions.deadCodeInjectionThreshold + 
+                                   ') 不能低于最小值 ' + MIN_OBFUSCATION_VALUES.deadCodeInjectionThreshold);
+          }
+          if (obfuscationOptions.stringArrayThreshold < MIN_OBFUSCATION_VALUES.stringArrayThreshold) {
+              validationErrors.push('stringArrayThreshold (' + obfuscationOptions.stringArrayThreshold + 
+                                   ') 不能低于最小值 ' + MIN_OBFUSCATION_VALUES.stringArrayThreshold);
+          }
+          if (obfuscationOptions.stringArrayWrappersCount < MIN_OBFUSCATION_VALUES.stringArrayWrappersCount) {
+              validationErrors.push('stringArrayWrappersCount (' + obfuscationOptions.stringArrayWrappersCount + 
+                                   ') 不能低于最小值 ' + MIN_OBFUSCATION_VALUES.stringArrayWrappersCount);
+          }
+          if (obfuscationOptions.stringArrayWrappersParametersMaxCount < MIN_OBFUSCATION_VALUES.stringArrayWrappersParametersMaxCount) {
+              validationErrors.push('stringArrayWrappersParametersMaxCount (' + obfuscationOptions.stringArrayWrappersParametersMaxCount + 
+                                   ') 不能低于最小值 ' + MIN_OBFUSCATION_VALUES.stringArrayWrappersParametersMaxCount);
+          }
+          if (obfuscationOptions.splitStringsChunkLength < MIN_OBFUSCATION_VALUES.splitStringsChunkLength) {
+              validationErrors.push('splitStringsChunkLength (' + obfuscationOptions.splitStringsChunkLength + 
+                                   ') 不能低于最小值 ' + MIN_OBFUSCATION_VALUES.splitStringsChunkLength);
+          }
+          
+          // 验证必须启用的选项
+          const requiredEnabled = ['compact', 'controlFlowFlattening', 'deadCodeInjection', 'stringArray', 
+                                   'stringArrayRotate', 'stringArrayShuffle', 'renameGlobals', 
+                                   'numbersToExpressions', 'splitStrings', 'unicodeEscapeSequence', 'disableConsoleOutput'];
+          for (const key of requiredEnabled) {
+              if (MIN_OBFUSCATION_VALUES[key] === true && obfuscationOptions[key] !== true) {
+                  validationErrors.push(key + ' 必须启用（当前为 ' + obfuscationOptions[key] + '），不能禁用');
+              }
+          }
+          
+          // 验证字符串数组编码必须包含base64
+          if (!obfuscationOptions.stringArrayEncoding || 
+              !obfuscationOptions.stringArrayEncoding.includes('base64')) {
+              validationErrors.push('stringArrayEncoding 必须包含 "base64" 编码');
+          }
+          
+          if (validationErrors.length > 0) {
+              console.error('❌ 混淆强度验证失败！以下配置违反了"不能降低强度"的规则：');
+              validationErrors.forEach(err => console.error('  ✗ ' + err));
+              console.error('');
+              console.error('⚠️  规则：混淆强度只能增加或保持不变，不能降低！');
+              console.error('💡 提示：如果要调整配置，请确保所有值都 >= 最小值');
+              process.exit(1);
+          }
+          
+          console.log('✅ 混淆强度配置验证通过（所有值均不低于最小值）');
+          console.log('   - controlFlowFlatteningThreshold: ' + obfuscationOptions.controlFlowFlatteningThreshold + ' (最小值: 1)');
+          console.log('   - deadCodeInjectionThreshold: ' + obfuscationOptions.deadCodeInjectionThreshold + ' (最小值: 1)');
+          console.log('   - stringArrayThreshold: ' + obfuscationOptions.stringArrayThreshold + ' (最小值: 1.0)');
+          console.log('   - stringArrayWrappersCount: ' + obfuscationOptions.stringArrayWrappersCount + ' (最小值: 2)');
+          console.log('   - splitStringsChunkLength: ' + obfuscationOptions.splitStringsChunkLength + ' (最小值: 1)');
+
+          console.log('开始混淆代码...');
+          let obfuscatedCode;
+          try {
+            const obfuscationResult = JavaScriptObfuscator.obfuscate(originalCode, obfuscationOptions);
+            obfuscatedCode = obfuscationResult.getObfuscatedCode();
+            console.log('混淆成功');
+          } catch (obfuscationError) {
+            console.error('混淆失败:', obfuscationError.message);
+            console.error('错误堆栈:', obfuscationError.stack);
+            process.exit(1);
+          }
+          
+          fs.writeFileSync(path.join(process.cwd(), outputFileName), obfuscatedCode, 'utf8');
+          const outputSize = fs.statSync(path.join(process.cwd(), outputFileName)).size;
+          console.log('成功将 \'' + sourceFileName + '\' 混淆并保存至 \'' + outputFileName + '\'。');
+          console.log('输出文件大小: ' + outputSize + ' 字节');
+          EOF
+          node obfuscate.js
+
+      - name: Prepare release file
+        run: |
+          WORKSPACE=$(pwd)
+          OBFUSCATED_FILE="少年你相信光吗"
+          
+          # 获取短提交哈希
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          RELEASE_FILE="${SHORT_SHA}-少年你相信光吗.txt"
+          DEFAULT_FILE="${SHORT_SHA}-default.txt"
+          
+          if [ ! -f "$OBFUSCATED_FILE" ]; then
+            echo "错误：混淆文件不存在"
+            ls -la
+            exit 1
+          fi
+          
+          FILE_SIZE=$(wc -c <"$OBFUSCATED_FILE" || stat -c%s "$OBFUSCATED_FILE" 2>/dev/null || stat -f%z "$OBFUSCATED_FILE" 2>/dev/null || echo "unknown")
+          echo "混淆文件大小: $FILE_SIZE 字节"
+          echo "文件路径: $WORKSPACE/$OBFUSCATED_FILE"
+          
+          # 创建两个版本的文件
+          cp "$OBFUSCATED_FILE" "$RELEASE_FILE"
+          cp "$OBFUSCATED_FILE" "$DEFAULT_FILE"
+          
+          echo "release_file=$RELEASE_FILE" >> $GITHUB_ENV
+          echo "default_file=$DEFAULT_FILE" >> $GITHUB_ENV
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_ENV
+          
+          TXT_SIZE=$(wc -c <"$RELEASE_FILE" || stat -c%s "$RELEASE_FILE" 2>/dev/null || stat -f%z "$RELEASE_FILE" 2>/dev/null || echo "unknown")
+          echo "txt文件大小: $TXT_SIZE 字节"
+          echo "Release文件: $RELEASE_FILE"
+          echo "Default文件: $DEFAULT_FILE"
+          
+          if [ ! -f "$RELEASE_FILE" ]; then
+            echo "错误：Release文件创建失败"
+            exit 1
+          fi
+          
+          echo "文件大小验证通过"
+          ls -lh "$RELEASE_FILE" "$DEFAULT_FILE" || echo "文件列表失败"
+
+      - name: Commit and force push the obfuscated file
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add '少年你相信光吗'
+          if git diff --staged --quiet; then
+            echo "No changes to commit, the obfuscated file is already up-to-date."
+          else
+            BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+            git commit -m "部署用这个 - $BUILD_DATE"
+            git push --force
+          fi
+
+      - name: Get build info
+        id: build-info
+        run: |
+          BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          BUILD_DATE_CN=$(date '+%Y年%m月%d日 %H:%M:%S')
+          TAG_NAME=$(date '+v%Y%m%d-%H%M%S')
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "build_date_cn=$BUILD_DATE_CN" >> $GITHUB_OUTPUT
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+
+      - name: Verify release file before upload
+        run: |
+          RELEASE_FILE="${{ env.release_file }}"
+          DEFAULT_FILE="${{ env.default_file }}"
+          
+          if [ ! -f "$RELEASE_FILE" ]; then
+            echo "错误：Release 文件不存在"
+            ls -la
+            exit 1
+          fi
+          
+          if [ ! -f "$DEFAULT_FILE" ]; then
+            echo "错误：Default 文件不存在"
+            ls -la
+            exit 1
+          fi
+          
+          FILE_SIZE=$(wc -c <"$RELEASE_FILE" || stat -c%s "$RELEASE_FILE" 2>/dev/null || stat -f%z "$RELEASE_FILE" 2>/dev/null || echo "unknown")
+          echo "准备上传的文件: $RELEASE_FILE"
+          echo "文件大小: $FILE_SIZE 字节 ($(($FILE_SIZE / 1024)) KB)"
+          if [ "$FILE_SIZE" -lt 1000000 ]; then
+            echo "警告：文件大小异常小，可能有问题"
+          fi
+          ls -lh "$RELEASE_FILE" "$DEFAULT_FILE"
+          pwd
+          file "$RELEASE_FILE" || echo "文件类型检查失败"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.build-info.outputs.tag_name }}
+          name: "构建版本 ${{ steps.build-info.outputs.build_date }}"
+          body: |
+            ## 更新日志
+            
+            **更新日期**: ${{ steps.build-info.outputs.build_date_cn }}
+            
+            ### 更新内容
+            - 自动构建完成
+            - 源文件已混淆并转换为txt格式
+            
+            ### 构建信息
+            - 构建时间: ${{ steps.build-info.outputs.build_date }}
+            - 构建分支: ${{ github.ref_name }}
+            - 提交哈希: ${{ env.short_sha }} (完整: ${{ github.sha }})
+            
+            ### 文件说明
+            - **${{ env.short_sha }}-少年你相信光吗.txt**: 混淆后的完整代码文件（约1.2MB）
+            - **${{ env.short_sha }}-default.txt**: 默认文件（与上面内容相同）
+          files: |
+            ${{ env.release_file }}
+            ${{ env.default_file }}
+          generate_release_notes: false
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
