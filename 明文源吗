@@ -2,7 +2,7 @@ import { connect } from 'cloudflare:sockets';
 
 // 更新: 2025-12-14 - 添加 RDP 配置 UI 到订阅中心
 // 默认VLESS协议UUID（必须是标准格式：8-4-4-4-12）
-const defaultUUID = '9ac70987-feda-4925-83a2-9f3328c28f4a';
+const defaultUUID = '8a17d8a4-6b03-4c8c-8409-5dc4a98a86bc';
 let at = defaultUUID;  // VLESS协议认证用的UUID
 let vlessUUID = defaultUUID;  // 用于生成VLESS链接的UUID
 let envUKey = ''; // 保存原始环境变量u的值，用于订阅路径验证
@@ -1794,7 +1794,7 @@ async function handleSubscriptionRequest(request, user, url = null) {
                 // VLESS
                 if (ev) out.push(`${nodeNameBase}`);
                 // Trojan
-                if (et) out.push(`${nodeNameBase}-${port}-Trojan-WS-TLS`);
+                if (et) out.push(`${nodeNameBase}`);
             } else {
                 // HTTP 非 TLS
                 if (!disableNonTLS) {
@@ -6243,7 +6243,7 @@ async function generateTrojanLinksFromNewIPs(list, user, workerDomain) {
 
         if (CF_HTTPS_PORTS.includes(port)) {
 
-            const wsNodeName = `${nodeName}-${port}-${atob('VHJvamFu')}-WS-TLS`;
+            const wsNodeName = `${nodeName}`;
             const link = `${atob('dHJvamFuOi8v')}${password}@${item.ip}:${port}?security=tls&sni=${workerDomain}&fp=chrome&type=ws&host=${workerDomain}&path=${wsPath}#${encodeURIComponent(wsNodeName)}`;
             links.push(link);
         } else if (CF_HTTP_PORTS.includes(port)) {
@@ -6255,7 +6255,7 @@ async function generateTrojanLinksFromNewIPs(list, user, workerDomain) {
             }
         } else {
 
-            const wsNodeName = `${nodeName}-${port}-${atob('VHJvamFu')}-WS-TLS`;
+            const wsNodeName = `${nodeName}`;
             const link = `${atob('dHJvamFuOi8v')}${password}@${item.ip}:${port}?security=tls&sni=${workerDomain}&fp=chrome&type=ws&host=${workerDomain}&path=${wsPath}#${encodeURIComponent(wsNodeName)}`;
             links.push(link);
         }
