@@ -3,13 +3,12 @@
 <div align="center">
 
 **多协议支持 · 图形化管理 · 自动优选**
-
+</div>
 注释掉原生地址   //const nativeList = [{ ip: workerDomain, isp: '原生地址' }];
                //await addNodesFromList(nativeList);
 删除后缀 onst wsNodeName = `${nodeNameBase}-${port}-WS-TLS`;
 删除后缀 WS-TLS
 
-</div>
 
 ---
 
